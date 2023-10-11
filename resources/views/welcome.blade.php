@@ -26,5 +26,8 @@
         <br>
         <input type="submit" value="Iniciar Sesión">
     </form>
+    <?php
+    // ... Tu código PHP aquí ...
+    ?>
     </body>
 </html>
