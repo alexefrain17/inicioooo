@@ -77,7 +77,55 @@
         <input type="submit" value="Iniciar Sesión">
     </form>
     <?php
-        // Tu código PHP aquí...
+       // Iniciar la sesión
+session_start();
+
+// Verificar si se enviaron datos del formulario
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Conexión a la base de datos
+    $servername = "tu_servidor";
+    $username = "tu_usuario";
+    $password = "tu_contraseña";
+    $database = "tu_base_de_datos";
+
+    $conexion = new mysqli($servername, $username, $password, $database);
+
+    if ($conexion->connect_error) {
+        die("Error de conexión: " . $conexion->connect_error);
+    }
+
+    // Datos del formulario
+    $username = $_POST["username"];
+    $password = $_POST["password"];
+
+    // Consulta para obtener el hash de la contraseña almacenada
+    $consulta = $conexion->prepare("SELECT id, nombre_usuario, hash_contrasena FROM usuarios WHERE nombre_usuario = ?");
+    $consulta->bind_param("s", $username);
+    $consulta->execute();
+    $consulta->store_result();
+
+    if ($consulta->num_rows > 0) {
+        $consulta->bind_result($id, $nombre_usuario, $hash_contrasena);
+        $consulta->fetch();
+
+        // Verificar la contraseña
+        if (password_verify($password, $hash_contrasena)) {
+            // Inicio de sesión exitoso
+            $_SESSION['usuario_id'] = $id;
+            $_SESSION['nombre_usuario'] = $nombre_usuario;
+
+            header("Location: inicio.php"); // Redireccionar a la página de inicio
+            exit();
+        } else {
+            echo "Contraseña incorrecta.";
+        }
+    } else {
+        echo "Usuario no encontrado.";
+    }
+
+    $consulta->close();
+    $conexion->close();
+}
     ?>
     </body>
 </html>
