@@ -63,6 +63,25 @@
             color: #d9534f;
             margin-top: 10px;
         }
+        body {
+            background-image: url('https://fotografiamejorparavendermas.com/wp-content/uploads/2017/06/La-importancia-de-la-imagen.jpg');
+            background-size: cover; /* Para cubrir todo el fondo */
+            background-position: center; /* Centrar la imagen */
+            font-family: Arial, sans-serif; /* Establecer la fuente */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        /* Resto de tu estilo... */
         </style>
     </head>
     <body class="antialiased">
@@ -77,55 +96,83 @@
         <input type="submit" value="Iniciar Sesión">
     </form>
     <?php
-       // Iniciar la sesión
 session_start();
 
-// Verificar si se enviaron datos del formulario
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Conexión a la base de datos
+// Función para conectar a la base de datos usando PDO
+function conectarBaseDeDatos() {
     $servername = "tu_servidor";
     $username = "tu_usuario";
     $password = "tu_contraseña";
     $database = "tu_base_de_datos";
 
-    $conexion = new mysqli($servername, $username, $password, $database);
-
-    if ($conexion->connect_error) {
-        die("Error de conexión: " . $conexion->connect_error);
+    try {
+        $conexion = new PDO("mysql:host=$servername;dbname=$database", $username, $password);
+        $conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        return $conexion;
+    } catch (PDOException $e) {
+        die("Error de conexión: " . $e->getMessage());
     }
-
-    // Datos del formulario
-    $username = $_POST["username"];
-    $password = $_POST["password"];
-
-    // Consulta para obtener el hash de la contraseña almacenada
-    $consulta = $conexion->prepare("SELECT id, nombre_usuario, hash_contrasena FROM usuarios WHERE nombre_usuario = ?");
-    $consulta->bind_param("s", $username);
-    $consulta->execute();
-    $consulta->store_result();
-
-    if ($consulta->num_rows > 0) {
-        $consulta->bind_result($id, $nombre_usuario, $hash_contrasena);
-        $consulta->fetch();
-
-        // Verificar la contraseña
-        if (password_verify($password, $hash_contrasena)) {
-            // Inicio de sesión exitoso
-            $_SESSION['usuario_id'] = $id;
-            $_SESSION['nombre_usuario'] = $nombre_usuario;
-
-            header("Location: inicio.php"); // Redireccionar a la página de inicio
-            exit();
-        } else {
-            echo "Contraseña incorrecta.";
-        }
-    } else {
-        echo "Usuario no encontrado.";
-    }
-
-    $consulta->close();
-    $conexion->close();
 }
-    ?>
+
+// Función para escapar HTML
+function limpiarEntrada($entrada) {
+    return htmlspecialchars($entrada, ENT_QUOTES, 'UTF-8');
+}
+
+// Función para hashear contraseñas
+function hashearContrasena($contrasena) {
+    // Puedes ajustar el costo según tus necesidades
+    $opciones = ['cost' => 12];
+    return password_hash($contrasena, PASSWORD_BCRYPT, $opciones);
+}
+
+// Función para cerrar sesión
+function cerrarSesion() {
+    $_SESSION = array();
+    session_destroy();
+}
+
+// Verificar si se enviaron datos del formulario
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Conexión a la base de datos
+    $conexion = conectarBaseDeDatos();
+
+    // Limpiar y validar datos del formulario
+    $username = limpiarEntrada($_POST["username"]);
+    $password = limpiarEntrada($_POST["password"]);
+
+    try {
+        // Consulta para obtener el hash de la contraseña almacenada
+        $consulta = $conexion->prepare("SELECT id, nombre_usuario, hash_contrasena FROM usuarios WHERE nombre_usuario = ?");
+        $consulta->execute([$username]);
+
+        if ($fila = $consulta->fetch()) {
+            $id = $fila['id'];
+            $nombre_usuario = $fila['nombre_usuario'];
+            $hash_contrasena = $fila['hash_contrasena'];
+
+            // Verificar la contraseña
+            if (password_verify($password, $hash_contrasena)) {
+                // Inicio de sesión exitoso
+                $_SESSION['usuario_id'] = $id;
+                $_SESSION['nombre_usuario'] = $nombre_usuario;
+
+                // Redireccionar a la página de inicio
+                header("Location: inicio.php");
+                exit();
+            } else {
+                echo '<div class="error">Contraseña incorrecta.</div>';
+            }
+        } else {
+            echo '<div class="error">Usuario no encontrado.</div>';
+        }
+    } catch (PDOException $e) {
+        echo '<div class="error">Error en la consulta: ' . $e->getMessage() . '</div>';
+    }
+
+    $conexion = null; // Cerrar la conexión
+}
+?>
+
     </body>
 </html>
